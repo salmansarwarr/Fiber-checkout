@@ -65,3 +65,10 @@ export type {
   ShutdownChannelParams,
   UpdateChannelParams,
 } from "./types/channel.js";
+
+// ─── Hooks ────────────────────────────────────────────────────────────────────
+export { useFiberInvoice } from "./hooks/use-fiber-invoice.js";
+export type {
+  UseFiberInvoiceOptions,
+  UseFiberInvoiceResult,
+} from "./hooks/use-fiber-invoice.js";
