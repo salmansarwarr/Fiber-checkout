@@ -79,7 +79,7 @@ export class FiberRpcClient {
     }
 
     /** Generic JSON-RPC 2.0 call */
-    private async call<T>(method: string, params: unknown[]): Promise<T> {
+    async call<T>(method: string, params: unknown[]): Promise<T> {
         const id = ++this.idCounter;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);

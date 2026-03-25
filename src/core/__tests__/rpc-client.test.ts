@@ -6,8 +6,8 @@ import {
     beforeEach,
     type MockedFunction,
 } from "vitest";
-import { FiberRpcClient } from "../../core/rpc-client";
-import { FiberError, FiberErrorCode } from "../../core/fiber-error";
+import { FiberRpcClient } from "../rpc-client";
+import { FiberError, FiberErrorCode } from "../fiber-error";
 import type { NewInvoiceParams } from "../../types/invoice";
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────

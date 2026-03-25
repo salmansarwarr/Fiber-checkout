@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { FiberError, FiberErrorCode } from "../../core/fiber-error";
+import { FiberError, FiberErrorCode } from "../fiber-error";
 
 describe("FiberError", () => {
     describe("construction", () => {
