@@ -32,6 +32,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.5.0",
+    "@types/qrcode.react": "^3.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitest/coverage-v8": "^2.1.9",
@@ -40,5 +41,8 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "qrcode.react": "^4.2.0"
   }
 }

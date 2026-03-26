@@ -79,3 +79,7 @@ export type {
   UseFiberPaymentResult,
   CheckoutStatus,
 } from "./hooks/use-fiber-payment.js";
+
+// ─── Components ───────────────────────────────────────────────────────────────
+export { FiberCheckout } from "./components/FiberCheckout.js";
+export type { FiberCheckoutProps } from "./components/FiberCheckout.js";
