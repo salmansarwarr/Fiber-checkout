@@ -72,3 +72,10 @@ export type {
   UseFiberInvoiceOptions,
   UseFiberInvoiceResult,
 } from "./hooks/use-fiber-invoice.js";
+
+export { useFiberPayment } from "./hooks/use-fiber-payment.js";
+export type {
+  UseFiberPaymentOptions,
+  UseFiberPaymentResult,
+  CheckoutStatus,
+} from "./hooks/use-fiber-payment.js";
