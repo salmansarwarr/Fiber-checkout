@@ -36,7 +36,7 @@ export class FiberRpcClient {
             ...options.headers,
         };
         this.timeoutMs = options.timeoutMs ?? 30000;
-        this.fetchFn = options.fetch ?? globalThis.fetch;
+        this.fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
 
         this.validateUrlSecurity(options.dangerouslyAllowDirectRpc);
     }
