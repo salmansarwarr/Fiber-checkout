@@ -14,18 +14,41 @@ import styles from "./App.module.css";
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 /**
+ * Helper to ensure we don't hit insecure HTTP/IP endpoints directly on HTTPS origins.
+ * Automatically falls back to the proxy path if necessary.
+ */
+const ensureProxyUrl = (url: string, defaultProxy = "/api/fiber-rpc") => {
+    if (typeof window === "undefined") return url;
+    const isHttps = window.location.protocol === "https:";
+    const isIpOrHttp =
+        url.startsWith("http://") ||
+        /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/.test(url.replace(/^https?:\/\//, ""));
+
+    if (isHttps && isIpOrHttp) {
+        console.warn(
+            `[fiber-checkout] Insecure or direct IP URL "${url}" detected on HTTPS. ` +
+                `Falling back to proxy "${defaultProxy}" to avoid Mixed Content errors.`,
+        );
+        return defaultProxy;
+    }
+    return url;
+};
+
+/**
  * Fiber Node RPC endpoint.
  * In production (HTTPS), this MUST be a proxy (e.g., /api/fiber-rpc) if the
  * target node is only available via HTTP.
  */
-const NODE_URL = import.meta.env.VITE_FIBER_NODE_URL ?? "/api/fiber-rpc";
+const NODE_URL = ensureProxyUrl(
+    import.meta.env.VITE_FIBER_NODE_URL ?? "/api/fiber-rpc",
+);
 
 /**
  * Invoice node — generates invoices.
- * If VITE_FIBER_INVOICE_NODE_URL is not set, we default to NODE_URL (proxy).
  */
-const INVOICE_NODE_URL =
-    import.meta.env.VITE_FIBER_INVOICE_NODE_URL ?? NODE_URL;
+const INVOICE_NODE_URL = ensureProxyUrl(
+    import.meta.env.VITE_FIBER_INVOICE_NODE_URL ?? NODE_URL,
+);
 
 const ALLOW_DIRECT = import.meta.env.VITE_ALLOW_DIRECT_RPC === "true";
 
