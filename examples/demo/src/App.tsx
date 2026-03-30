@@ -13,11 +13,20 @@ import styles from "./App.module.css";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
+/**
+ * Fiber Node RPC endpoint.
+ * In production (HTTPS), this MUST be a proxy (e.g., /api/fiber-rpc) if the
+ * target node is only available via HTTP.
+ */
 const NODE_URL = import.meta.env.VITE_FIBER_NODE_URL ?? "/api/fiber-rpc";
-// Invoice node — generates invoices (must be a DIFFERENT node from NODE_URL)
-// In testnet: use node2 so payments route local → node2
+
+/**
+ * Invoice node — generates invoices.
+ * If VITE_FIBER_INVOICE_NODE_URL is not set, we default to NODE_URL (proxy).
+ */
 const INVOICE_NODE_URL =
     import.meta.env.VITE_FIBER_INVOICE_NODE_URL ?? NODE_URL;
+
 const ALLOW_DIRECT = import.meta.env.VITE_ALLOW_DIRECT_RPC === "true";
 
 const ASSETS: { id: AssetId; label: string; symbol: string }[] = [
