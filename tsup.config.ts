@@ -6,6 +6,7 @@ export default defineConfig({
   dts: true,                    // generate .d.ts files
   sourcemap: true,
   clean: true,                  // wipe dist/ before each build
-  external: ["react", "react-dom"], // don't bundle peer deps
+  external: ["react", "react-dom", "react/jsx-runtime"],// don't bundle peer deps
   treeshake: true,
+  splitting: true
 });

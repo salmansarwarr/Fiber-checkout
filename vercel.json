@@ -1,12 +1,12 @@
 {
-    "buildCommand": "cd examples/demo && npm install && npm run build",
-    "outputDirectory": "examples/demo/dist",
-    "installCommand": "npm install",
-    "framework": "vite",
-    "rewrites": [
-      {
-        "source": "/api/fiber-rpc",
-        "destination": "/api/fiber-rpc"
-      }
-    ]
-  }
+  "buildCommand": "npm run build && cd examples/demo && npm install && npm run build",
+  "outputDirectory": "examples/demo/dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/fiber-rpc",
+      "destination": "/api/fiber-rpc"
+    }
+  ]
+}
