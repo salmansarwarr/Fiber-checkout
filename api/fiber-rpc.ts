@@ -42,7 +42,11 @@ export default async function handler(req, res) {
     try {
         const upstream = await fetch(NODE_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                // Bypass ngrok's transition/warning page if the user is using it
+                "ngrok-skip-browser-warning": "true",
+            },
             body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
         });
         const data = await upstream.json();
