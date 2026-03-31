@@ -47,6 +47,13 @@ export default function () {
     const effectiveNodeUrl = customNodeUrl || INVOICE_NODE_URL;
     const amountHex = ckbToShannonHex(ckbAmount) as HexString;
 
+    // When a custom URL is used on Vercel, we must route through our proxy
+    // to avoid CORS issues. We pass the actual target via a header.
+    const rpcUrl = customNodeUrl ? "/api/fiber-rpc" : effectiveNodeUrl;
+    const rpcHeaders = customNodeUrl
+        ? { "x-fiber-node-url": customNodeUrl }
+        : undefined;
+
     const {
         invoiceAddress,
         paymentHash,
@@ -55,7 +62,8 @@ export default function () {
         error: invoiceError,
         regenerate,
     } = useFiberInvoice({
-        nodeUrl: effectiveNodeUrl,
+        nodeUrl: rpcUrl,
+        headers: rpcHeaders,
         amount: amountHex,
         asset,
         expirySeconds: 3600,
@@ -64,7 +72,8 @@ export default function () {
     });
 
     const { status, error: paymentError } = useFiberPayment({
-        nodeUrl: effectiveNodeUrl,
+        nodeUrl: rpcUrl,
+        headers: rpcHeaders,
         paymentHash,
         expiresAt,
         dangerouslyAllowDirectRpc: ALLOW_DIRECT,

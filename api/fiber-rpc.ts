@@ -12,12 +12,25 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const NODE_URL = process.env.FIBER_NODE_URL;
+    // Support dynamic node URL via header (for ngrok/dev use cases)
+    const customNodeUrl = req.headers["x-fiber-node-url"];
+    let NODE_URL = process.env.FIBER_NODE_URL;
+
+    if (customNodeUrl) {
+        if (
+            typeof customNodeUrl !== "string" ||
+            !customNodeUrl.startsWith("http")
+        ) {
+            return res.status(400).json({ error: "Invalid x-fiber-node-url" });
+        }
+        NODE_URL = customNodeUrl;
+    }
+
     if (!NODE_URL) {
         return res.status(200).json({
             jsonrpc: "2.0",
             id: null,
-            error: { code: -32603, message: "FIBER_NODE_URL not configured" },
+            error: { code: -32603, message: "Fiber node URL not configured" },
         });
     }
 
