@@ -5,12 +5,20 @@ import {
     formatAmount,
     ckbToShannonHex,
 } from "fiber-checkout";
+import { FiberRpcClient } from "fiber-checkout";
 import type { AssetId } from "fiber-checkout";
 import type { HexString } from "fiber-checkout";
 import { QRCodeSVG } from "qrcode.react";
 import styles from "./App.module.css";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
+
+const NODE_URL = import.meta.env.VITE_FIBER_NODE_URL ?? "/api/fiber-rpc";
+// Invoice node — generates invoices (must be a DIFFERENT node from NODE_URL)
+// In testnet: use node2 so payments route local → node2 (avoids self-payment error)
+const INVOICE_NODE_URL =
+    import.meta.env.VITE_FIBER_INVOICE_NODE_URL ?? "/api/node2-rpc";
+const ALLOW_DIRECT = import.meta.env.VITE_ALLOW_DIRECT_RPC !== "false";
 
 const ASSETS: { id: AssetId; label: string; symbol: string }[] = [
     { id: "CKB", label: "CKB", symbol: "CKB" },
@@ -22,18 +30,75 @@ const PRESETS = [0.1, 0.5, 1, 5, 10];
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function () {
-    const [nodeUrl, setNodeUrl] = useState("");
-    const [connectedUrl, setConnectedUrl] = useState<string | null>(null);
+    const [asset, setAsset] = useState<AssetId>("CKB");
+    const [ckbAmount, setCkbAmount] = useState(1);
+    const [copied, setCopied] = useState(false);
+    const [successHash, setSuccessHash] = useState<HexString | null>(null);
+    const [paying, setPaying] = useState(false);
+    const [payError, setPayError] = useState<string | null>(null);
 
-    const handleConnect = useCallback(() => {
-        const trimmed = nodeUrl.trim();
-        if (!trimmed) return;
-        setConnectedUrl(trimmed);
-    }, [nodeUrl]);
+    const amountHex = ckbToShannonHex(ckbAmount) as HexString;
 
-    const handleDisconnect = useCallback(() => {
-        setConnectedUrl(null);
-    }, []);
+    const {
+        invoiceAddress,
+        paymentHash,
+        expiresAt,
+        isLoading: invoiceLoading,
+        error: invoiceError,
+        regenerate,
+    } = useFiberInvoice({
+        nodeUrl: INVOICE_NODE_URL,
+        amount: amountHex,
+        asset,
+        expirySeconds: 3600,
+        description: `fiber-checkout demo — ${ckbAmount} ${asset}`,
+        dangerouslyAllowDirectRpc: ALLOW_DIRECT,
+    });
+
+    const { status, error: paymentError } = useFiberPayment({
+        nodeUrl: INVOICE_NODE_URL,
+        paymentHash,
+        expiresAt,
+        dangerouslyAllowDirectRpc: ALLOW_DIRECT,
+        onSuccess: (hash) => setSuccessHash(hash),
+        onExpired: () => {},
+        onError: () => {},
+    });
+
+    const handlePay = useCallback(async () => {
+        if (!invoiceAddress || paying) return;
+        setPaying(true);
+        setPayError(null);
+        try {
+            const client = new FiberRpcClient({
+                url: NODE_URL,
+                dangerouslyAllowDirectRpc: ALLOW_DIRECT,
+            });
+            await client.call("send_payment", [{ invoice: invoiceAddress }]);
+        } catch (err: any) {
+            setPayError(err?.message ?? "send_payment failed");
+        } finally {
+            setPaying(false);
+        }
+    }, [invoiceAddress, paying]);
+
+    const handleCopy = useCallback(async () => {
+        if (!invoiceAddress) return;
+        await navigator.clipboard.writeText(invoiceAddress).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    }, [invoiceAddress]);
+
+    const handleNewPayment = useCallback(() => {
+        setSuccessHash(null);
+        setPayError(null);
+        regenerate();
+    }, [regenerate]);
+
+    const isTerminal =
+        status === "success" || status === "expired" || status === "failed";
+    const error = invoiceError ?? paymentError;
+    const displayError = error ?? (payError ? { message: payError } : null);
 
     return (
         <div className={styles.layout}>
@@ -46,166 +111,12 @@ export default function () {
                 </div>
 
                 <p className={styles.sidebarDesc}>
-                    Drop-in React component for Fiber Network payments. Connect
-                    your Fiber node to generate invoices and test payments.
+                    Drop-in React component for Fiber Network payments. Select
+                    an asset and amount to generate a testnet invoice.
                 </p>
 
-                {/* Node URL input */}
+                {/* Asset selector */}
                 <div className={styles.field}>
-                    <label className={styles.label}>Fiber Node URL</label>
-                    {!connectedUrl ? (
-                        <>
-                            <input
-                                className={styles.amountInput}
-                                type="text"
-                                placeholder="https://your-ngrok-url.ngrok-free.app"
-                                value={nodeUrl}
-                                onChange={(e) => setNodeUrl(e.target.value)}
-                                onKeyDown={(e) =>
-                                    e.key === "Enter" && handleConnect()
-                                }
-                            />
-                            <p className={styles.nodeHint}>
-                                Run your Fiber node locally, expose it via{" "}
-                                <code>ngrok http 8227</code>, then paste the URL
-                                above.
-                            </p>
-                            <button
-                                className={styles.retryBtn}
-                                onClick={handleConnect}
-                                disabled={!nodeUrl.trim()}
-                                type="button"
-                                style={{
-                                    opacity: nodeUrl.trim() ? 1 : 0.5,
-                                    cursor: nodeUrl.trim()
-                                        ? "pointer"
-                                        : "not-allowed",
-                                }}
-                            >
-                                Connect
-                            </button>
-                        </>
-                    ) : (
-                        <div className={styles.connectedBadge}>
-                            <span className={styles.connectedDot} />
-                            <span className={styles.connectedUrl}>
-                                {connectedUrl}
-                            </span>
-                            <button
-                                className={styles.disconnectBtn}
-                                onClick={handleDisconnect}
-                                type="button"
-                                title="Disconnect"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Code snippet */}
-                <div className={styles.field}>
-                    <label className={styles.label}>Usage</label>
-                    <pre className={styles.codeBlock}>{`<FiberCheckout
-  amount="0x5f5e100"
-  asset="CKB"
-  nodeUrl="<your-node-url>"
-  onSuccess={onSuccess}
-/>`}</pre>
-                </div>
-
-                <a
-                    className={styles.githubLink}
-                    href="https://github.com/nervosnetwork/fiber"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    View on GitHub →
-                </a>
-            </aside>
-
-            {/* ── Right panel — checkout widget ── */}
-            <main className={styles.main}>
-                {connectedUrl ? (
-                    <ConnectedCheckout nodeUrl={connectedUrl} />
-                ) : (
-                    <div className={styles.card}>
-                        <div className={styles.emptyState}>
-                            <div className={styles.emptyIcon}>⬡</div>
-                            <h2 className={styles.emptyTitle}>
-                                Connect your node
-                            </h2>
-                            <p className={styles.emptyDesc}>
-                                Enter your Fiber node URL in the sidebar to
-                                start generating invoices and testing payments.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                <p className={styles.networkBadge}>⬡ Fiber Testnet</p>
-            </main>
-        </div>
-    );
-}
-
-// ─── Connected Checkout ───────────────────────────────────────────────────────
-
-function ConnectedCheckout({ nodeUrl }: { nodeUrl: string }) {
-    const [asset, setAsset] = useState<AssetId>("CKB");
-    const [ckbAmount, setCkbAmount] = useState(1);
-    const [copied, setCopied] = useState(false);
-    const [successHash, setSuccessHash] = useState<HexString | null>(null);
-
-    const amountHex = ckbToShannonHex(ckbAmount) as HexString;
-
-    const {
-        invoiceAddress,
-        paymentHash,
-        expiresAt,
-        isLoading: invoiceLoading,
-        error: invoiceError,
-        regenerate,
-    } = useFiberInvoice({
-        nodeUrl,
-        amount: amountHex,
-        asset,
-        expirySeconds: 3600,
-        description: `fiber-checkout demo — ${ckbAmount} ${asset}`,
-        dangerouslyAllowDirectRpc: true,
-    });
-
-    const { status, error: paymentError } = useFiberPayment({
-        nodeUrl,
-        paymentHash,
-        expiresAt,
-        dangerouslyAllowDirectRpc: true,
-        onSuccess: (hash: HexString) => setSuccessHash(hash),
-        onExpired: () => {},
-        onError: () => {},
-    });
-
-    const handleCopy = useCallback(async () => {
-        if (!invoiceAddress) return;
-        await navigator.clipboard.writeText(invoiceAddress).catch(() => {});
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    }, [invoiceAddress]);
-
-    const handleNewPayment = useCallback(() => {
-        setSuccessHash(null);
-        regenerate();
-    }, [regenerate]);
-
-    const isTerminal =
-        status === "success" || status === "expired" || status === "failed";
-    const error = invoiceError ?? paymentError;
-
-    return (
-        <>
-            {/* Asset & Amount selectors */}
-            <div className={styles.card} style={{ marginBottom: 12 }}>
-                <div className={styles.field} style={{ width: "100%" }}>
                     <label className={styles.label}>Asset</label>
                     <div className={styles.assetGroup}>
                         {ASSETS.map((a) => (
@@ -224,7 +135,8 @@ function ConnectedCheckout({ nodeUrl }: { nodeUrl: string }) {
                     </div>
                 </div>
 
-                <div className={styles.field} style={{ width: "100%" }}>
+                {/* Amount */}
+                <div className={styles.field}>
                     <label className={styles.label}>Amount ({asset})</label>
                     <div className={styles.presets}>
                         {PRESETS.map((p) => (
@@ -257,35 +169,61 @@ function ConnectedCheckout({ nodeUrl }: { nodeUrl: string }) {
                         }}
                     />
                 </div>
-            </div>
 
-            {/* Checkout card */}
-            <div className={styles.card}>
-                {status === "success" && successHash ? (
-                    <SuccessView
-                        hash={successHash}
-                        amount={ckbAmount}
-                        asset={asset}
-                        onNewPayment={handleNewPayment}
-                    />
-                ) : (
-                    <CheckoutView
-                        invoiceAddress={invoiceAddress}
-                        invoiceLoading={invoiceLoading}
-                        status={status}
-                        error={error}
-                        expiresAt={expiresAt}
-                        ckbAmount={ckbAmount}
-                        asset={asset}
-                        amountHex={amountHex}
-                        copied={copied}
-                        isTerminal={isTerminal}
-                        onCopy={handleCopy}
-                        onRegenerate={handleNewPayment}
-                    />
-                )}
-            </div>
-        </>
+                {/* Code snippet */}
+                <div className={styles.field}>
+                    <label className={styles.label}>Usage</label>
+                    <pre className={styles.codeBlock}>{`<FiberCheckout
+  amount="${amountHex}"
+  asset="${asset}"
+  nodeUrl="/api/node2-rpc"
+  onSuccess={onSuccess}
+/>`}</pre>
+                </div>
+
+                <a
+                    className={styles.githubLink}
+                    href="https://github.com/nervosnetwork/fiber"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    View on GitHub →
+                </a>
+            </aside>
+
+            {/* ── Right panel — checkout widget ── */}
+            <main className={styles.main}>
+                <div className={styles.card}>
+                    {status === "success" && successHash ? (
+                        <SuccessView
+                            hash={successHash}
+                            amount={ckbAmount}
+                            asset={asset}
+                            onNewPayment={handleNewPayment}
+                        />
+                    ) : (
+                        <CheckoutView
+                            invoiceAddress={invoiceAddress}
+                            invoiceLoading={invoiceLoading}
+                            status={status}
+                            error={displayError}
+                            expiresAt={expiresAt}
+                            ckbAmount={ckbAmount}
+                            asset={asset}
+                            amountHex={amountHex}
+                            copied={copied}
+                            isTerminal={isTerminal}
+                            paying={paying}
+                            onCopy={handleCopy}
+                            onPay={handlePay}
+                            onRegenerate={handleNewPayment}
+                        />
+                    )}
+                </div>
+
+                <p className={styles.networkBadge}>⬡ Fiber Testnet</p>
+            </main>
+        </div>
     );
 }
 
@@ -302,7 +240,9 @@ function CheckoutView({
     amountHex,
     copied,
     isTerminal,
+    paying,
     onCopy,
+    onPay,
     onRegenerate,
 }: {
     invoiceAddress: string | null;
@@ -315,7 +255,9 @@ function CheckoutView({
     amountHex: HexString;
     copied: boolean;
     isTerminal: boolean;
+    paying: boolean;
     onCopy: () => void;
+    onPay: () => void;
     onRegenerate: () => void;
 }) {
     return (
@@ -356,7 +298,7 @@ function CheckoutView({
             </div>
 
             {/* Status */}
-            <StatusBadge status={status} />
+            <StatusBadge status={status} paying={paying} />
 
             {/* Expiry */}
             {expiresAt && status === "pending" && (
@@ -377,6 +319,28 @@ function CheckoutView({
                         type="button"
                     >
                         {copied ? "✓ Copied" : "Copy invoice"}
+                    </button>
+                )}
+
+                {/* Demo pay button — simulates a wallet paying the invoice */}
+                {invoiceAddress && status === "pending" && !paying && (
+                    <button
+                        className={styles.retryBtn}
+                        onClick={onPay}
+                        type="button"
+                    >
+                        ⬡ Pay with testnet node
+                    </button>
+                )}
+
+                {paying && (
+                    <button
+                        className={styles.retryBtn}
+                        disabled
+                        type="button"
+                        style={{ opacity: 0.6, cursor: "not-allowed" }}
+                    >
+                        Sending…
                     </button>
                 )}
 

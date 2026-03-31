@@ -21,6 +21,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/fiber-rpc/, ''),
       },
+      '/api/node2-rpc': {
+        target: 'http://18.163.221.211:8227',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/node2-rpc/, ''),
+      },
     },
   },
 })
