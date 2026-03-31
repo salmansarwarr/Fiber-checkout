@@ -34,9 +34,17 @@ export default function () {
     const [ckbAmount, setCkbAmount] = useState(1);
     const [copied, setCopied] = useState(false);
     const [successHash, setSuccessHash] = useState<HexString | null>(null);
-    const [paying, setPaying] = useState(false);
-    const [payError, setPayError] = useState<string | null>(null);
+    const [customNodeUrl, setCustomNodeUrl] = useState(() => {
+        return localStorage.getItem("fiber_node_url") || "";
+    });
 
+    const handleUrlChange = (val: string) => {
+        setCustomNodeUrl(val);
+        localStorage.setItem("fiber_node_url", val);
+        setSuccessHash(null);
+    };
+
+    const effectiveNodeUrl = customNodeUrl || INVOICE_NODE_URL;
     const amountHex = ckbToShannonHex(ckbAmount) as HexString;
 
     const {
@@ -47,7 +55,7 @@ export default function () {
         error: invoiceError,
         regenerate,
     } = useFiberInvoice({
-        nodeUrl: INVOICE_NODE_URL,
+        nodeUrl: effectiveNodeUrl,
         amount: amountHex,
         asset,
         expirySeconds: 3600,
@@ -56,7 +64,7 @@ export default function () {
     });
 
     const { status, error: paymentError } = useFiberPayment({
-        nodeUrl: INVOICE_NODE_URL,
+        nodeUrl: effectiveNodeUrl,
         paymentHash,
         expiresAt,
         dangerouslyAllowDirectRpc: ALLOW_DIRECT,
@@ -64,23 +72,6 @@ export default function () {
         onExpired: () => {},
         onError: () => {},
     });
-
-    const handlePay = useCallback(async () => {
-        if (!invoiceAddress || paying) return;
-        setPaying(true);
-        setPayError(null);
-        try {
-            const client = new FiberRpcClient({
-                url: NODE_URL,
-                dangerouslyAllowDirectRpc: ALLOW_DIRECT,
-            });
-            await client.call("send_payment", [{ invoice: invoiceAddress }]);
-        } catch (err: any) {
-            setPayError(err?.message ?? "send_payment failed");
-        } finally {
-            setPaying(false);
-        }
-    }, [invoiceAddress, paying]);
 
     const handleCopy = useCallback(async () => {
         if (!invoiceAddress) return;
@@ -91,14 +82,12 @@ export default function () {
 
     const handleNewPayment = useCallback(() => {
         setSuccessHash(null);
-        setPayError(null);
         regenerate();
     }, [regenerate]);
 
     const isTerminal =
         status === "success" || status === "expired" || status === "failed";
-    const error = invoiceError ?? paymentError;
-    const displayError = error ?? (payError ? { message: payError } : null);
+    const displayError = invoiceError ?? paymentError;
 
     return (
         <div className={styles.layout}>
@@ -114,6 +103,39 @@ export default function () {
                     Drop-in React component for Fiber Network payments. Select
                     an asset and amount to generate a testnet invoice.
                 </p>
+
+                {/* Node URL configuration */}
+                <div className={styles.field}>
+                    <label className={styles.label}>Fiber Node URL</label>
+                    {customNodeUrl ? (
+                        <div className={styles.connectedBadge}>
+                            <div className={styles.connectedDot} />
+                            <span className={styles.connectedUrl}>
+                                {customNodeUrl}
+                            </span>
+                            <button
+                                className={styles.disconnectBtn}
+                                onClick={() => handleUrlChange("")}
+                                title="Use default node"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    ) : (
+                        <input
+                            className={styles.amountInput}
+                            type="text"
+                            placeholder="e.g. https://node.ngrok.app"
+                            value={customNodeUrl}
+                            onChange={(e) => handleUrlChange(e.target.value)}
+                        />
+                    )}
+                    <p className={styles.nodeHint}>
+                        {customNodeUrl
+                            ? "Connected to custom node"
+                            : `Default: ${INVOICE_NODE_URL}`}
+                    </p>
+                </div>
 
                 {/* Asset selector */}
                 <div className={styles.field}>
@@ -176,7 +198,7 @@ export default function () {
                     <pre className={styles.codeBlock}>{`<FiberCheckout
   amount="${amountHex}"
   asset="${asset}"
-  nodeUrl="/api/node2-rpc"
+  nodeUrl="${effectiveNodeUrl}"
   onSuccess={onSuccess}
 />`}</pre>
                 </div>
@@ -213,9 +235,7 @@ export default function () {
                             amountHex={amountHex}
                             copied={copied}
                             isTerminal={isTerminal}
-                            paying={paying}
                             onCopy={handleCopy}
-                            onPay={handlePay}
                             onRegenerate={handleNewPayment}
                         />
                     )}
@@ -240,9 +260,7 @@ function CheckoutView({
     amountHex,
     copied,
     isTerminal,
-    paying,
     onCopy,
-    onPay,
     onRegenerate,
 }: {
     invoiceAddress: string | null;
@@ -255,9 +273,7 @@ function CheckoutView({
     amountHex: HexString;
     copied: boolean;
     isTerminal: boolean;
-    paying: boolean;
     onCopy: () => void;
-    onPay: () => void;
     onRegenerate: () => void;
 }) {
     return (
@@ -298,7 +314,7 @@ function CheckoutView({
             </div>
 
             {/* Status */}
-            <StatusBadge status={status} paying={paying} />
+            <StatusBadge status={status} />
 
             {/* Expiry */}
             {expiresAt && status === "pending" && (
@@ -319,28 +335,6 @@ function CheckoutView({
                         type="button"
                     >
                         {copied ? "✓ Copied" : "Copy invoice"}
-                    </button>
-                )}
-
-                {/* Demo pay button — simulates a wallet paying the invoice */}
-                {invoiceAddress && status === "pending" && !paying && (
-                    <button
-                        className={styles.retryBtn}
-                        onClick={onPay}
-                        type="button"
-                    >
-                        ⬡ Pay with testnet node
-                    </button>
-                )}
-
-                {paying && (
-                    <button
-                        className={styles.retryBtn}
-                        disabled
-                        type="button"
-                        style={{ opacity: 0.6, cursor: "not-allowed" }}
-                    >
-                        Sending…
                     </button>
                 )}
 
@@ -416,14 +410,14 @@ function SuccessView({
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
-function StatusBadge({ status, paying }: { status: string; paying?: boolean }) {
+function StatusBadge({ status }: { status: string }) {
     const config: Record<string, { label: string; cls: string }> = {
         idle: {
-            label: paying ? "Sending payment…" : "Initializing…",
+            label: "Initializing…",
             cls: styles.statusIdle,
         },
         pending: {
-            label: paying ? "Sending payment…" : "Waiting for payment",
+            label: "Waiting for payment",
             cls: styles.statusPending,
         },
         processing: { label: "Processing…", cls: styles.statusProcessing },
