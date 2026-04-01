@@ -14,7 +14,7 @@ import styles from "./App.module.css";
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const NODE_URL = import.meta.env.VITE_FIBER_NODE_URL ?? "/api/fiber-rpc";
-const INVOICE_NODE_URL = "http://18.162.235.225:8227";
+const INVOICE_NODE_URL = "/api/fiber-rpc";
 const ALLOW_DIRECT = import.meta.env.VITE_ALLOW_DIRECT_RPC !== "false";
 
 const ASSETS: { id: AssetId; label: string; symbol: string }[] = [

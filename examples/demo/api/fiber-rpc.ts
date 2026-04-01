@@ -5,7 +5,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const NODE_URL = process.env.FIBER_NODE_URL || "http://18.163.221.211:8227";
+    const NODE_URL = process.env.FIBER_NODE_URL || "http://18.162.235.225:8227";
     const { id = null, method, params = [] } = req.body ?? {};
 
     if (!ALLOWED_METHODS.has(method)) {
