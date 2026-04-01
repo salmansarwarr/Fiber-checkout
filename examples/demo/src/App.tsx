@@ -14,10 +14,7 @@ import styles from "./App.module.css";
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const NODE_URL = import.meta.env.VITE_FIBER_NODE_URL ?? "/api/fiber-rpc";
-// Invoice node — generates invoices (must be a DIFFERENT node from NODE_URL)
-// In testnet: use node2 so payments route local → node2 (avoids self-payment error)
-const INVOICE_NODE_URL =
-    import.meta.env.VITE_FIBER_INVOICE_NODE_URL ?? "/api/node2-rpc";
+const INVOICE_NODE_URL = "http://18.162.235.225:8227";
 const ALLOW_DIRECT = import.meta.env.VITE_ALLOW_DIRECT_RPC !== "false";
 
 const ASSETS: { id: AssetId; label: string; symbol: string }[] = [
@@ -34,25 +31,18 @@ export default function () {
     const [ckbAmount, setCkbAmount] = useState(1);
     const [copied, setCopied] = useState(false);
     const [successHash, setSuccessHash] = useState<HexString | null>(null);
-    const [customNodeUrl, setCustomNodeUrl] = useState(() => {
-        return localStorage.getItem("fiber_node_url") || "";
-    });
+    const [paying, setPaying] = useState(false);
+    const [payError, setPayError] = useState<string | null>(null);
 
-    const handleUrlChange = (val: string) => {
-        setCustomNodeUrl(val);
-        localStorage.setItem("fiber_node_url", val);
-        setSuccessHash(null);
-    };
+    const isLocalhost =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1";
 
-    const effectiveNodeUrl = customNodeUrl || INVOICE_NODE_URL;
+    const effectiveNodeUrl = INVOICE_NODE_URL;
     const amountHex = ckbToShannonHex(ckbAmount) as HexString;
 
-    // When a custom URL is used on Vercel, we must route through our proxy
-    // to avoid CORS issues. We pass the actual target via a header.
-    const rpcUrl = customNodeUrl ? "/api/fiber-rpc" : effectiveNodeUrl;
-    const rpcHeaders = customNodeUrl
-        ? { "x-fiber-node-url": customNodeUrl }
-        : undefined;
+    const rpcUrl = effectiveNodeUrl;
+    const rpcHeaders = undefined;
 
     const {
         invoiceAddress,
@@ -82,6 +72,23 @@ export default function () {
         onError: () => {},
     });
 
+    const handlePay = useCallback(async () => {
+        if (!invoiceAddress || paying) return;
+        setPaying(true);
+        setPayError(null);
+        try {
+            const client = new FiberRpcClient({
+                url: NODE_URL,
+                dangerouslyAllowDirectRpc: ALLOW_DIRECT,
+            });
+            await client.call("send_payment", [{ invoice: invoiceAddress }]);
+        } catch (err: any) {
+            setPayError(err?.message ?? "send_payment failed");
+        } finally {
+            setPaying(false);
+        }
+    }, [invoiceAddress, paying]);
+
     const handleCopy = useCallback(async () => {
         if (!invoiceAddress) return;
         await navigator.clipboard.writeText(invoiceAddress).catch(() => {});
@@ -91,12 +98,14 @@ export default function () {
 
     const handleNewPayment = useCallback(() => {
         setSuccessHash(null);
+        setPayError(null);
         regenerate();
     }, [regenerate]);
 
     const isTerminal =
         status === "success" || status === "expired" || status === "failed";
-    const displayError = invoiceError ?? paymentError;
+    const error = invoiceError ?? paymentError;
+    const displayError = error ?? (payError ? { message: payError } : null);
 
     return (
         <div className={styles.layout}>
@@ -112,39 +121,6 @@ export default function () {
                     Drop-in React component for Fiber Network payments. Select
                     an asset and amount to generate a testnet invoice.
                 </p>
-
-                {/* Node URL configuration */}
-                <div className={styles.field}>
-                    <label className={styles.label}>Fiber Node URL</label>
-                    {customNodeUrl ? (
-                        <div className={styles.connectedBadge}>
-                            <div className={styles.connectedDot} />
-                            <span className={styles.connectedUrl}>
-                                {customNodeUrl}
-                            </span>
-                            <button
-                                className={styles.disconnectBtn}
-                                onClick={() => handleUrlChange("")}
-                                title="Use default node"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                    ) : (
-                        <input
-                            className={styles.amountInput}
-                            type="text"
-                            placeholder="e.g. https://node.ngrok.app"
-                            value={customNodeUrl}
-                            onChange={(e) => handleUrlChange(e.target.value)}
-                        />
-                    )}
-                    <p className={styles.nodeHint}>
-                        {customNodeUrl
-                            ? "Connected to custom node"
-                            : `Default: ${INVOICE_NODE_URL}`}
-                    </p>
-                </div>
 
                 {/* Asset selector */}
                 <div className={styles.field}>
@@ -244,7 +220,10 @@ export default function () {
                             amountHex={amountHex}
                             copied={copied}
                             isTerminal={isTerminal}
+                            paying={paying}
+                            isLocalhost={isLocalhost}
                             onCopy={handleCopy}
+                            onPay={handlePay}
                             onRegenerate={handleNewPayment}
                         />
                     )}
@@ -269,7 +248,10 @@ function CheckoutView({
     amountHex,
     copied,
     isTerminal,
+    paying,
+    isLocalhost,
     onCopy,
+    onPay,
     onRegenerate,
 }: {
     invoiceAddress: string | null;
@@ -282,7 +264,10 @@ function CheckoutView({
     amountHex: HexString;
     copied: boolean;
     isTerminal: boolean;
+    paying: boolean;
+    isLocalhost: boolean;
     onCopy: () => void;
+    onPay: () => void;
     onRegenerate: () => void;
 }) {
     return (
@@ -323,7 +308,7 @@ function CheckoutView({
             </div>
 
             {/* Status */}
-            <StatusBadge status={status} />
+            <StatusBadge status={status} paying={paying} />
 
             {/* Expiry */}
             {expiresAt && status === "pending" && (
@@ -344,6 +329,31 @@ function CheckoutView({
                         type="button"
                     >
                         {copied ? "✓ Copied" : "Copy invoice"}
+                    </button>
+                )}
+
+                {/* Demo pay button — simulates a wallet paying the invoice (Localhost only) */}
+                {isLocalhost &&
+                    invoiceAddress &&
+                    status === "pending" &&
+                    !paying && (
+                        <button
+                            className={styles.retryBtn}
+                            onClick={onPay}
+                            type="button"
+                        >
+                            ⬡ Pay with testnet node
+                        </button>
+                    )}
+
+                {isLocalhost && paying && (
+                    <button
+                        className={styles.retryBtn}
+                        disabled
+                        type="button"
+                        style={{ opacity: 0.6, cursor: "not-allowed" }}
+                    >
+                        Sending…
                     </button>
                 )}
 
@@ -419,14 +429,14 @@ function SuccessView({
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, paying }: { status: string; paying?: boolean }) {
     const config: Record<string, { label: string; cls: string }> = {
         idle: {
-            label: "Initializing…",
+            label: paying ? "Sending payment…" : "Initializing…",
             cls: styles.statusIdle,
         },
         pending: {
-            label: "Waiting for payment",
+            label: paying ? "Sending payment…" : "Waiting for payment",
             cls: styles.statusPending,
         },
         processing: { label: "Processing…", cls: styles.statusProcessing },
