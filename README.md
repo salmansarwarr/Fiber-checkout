@@ -331,6 +331,8 @@ if (FiberError.is(err)) {
 |---|---|---|---|
 | `CKB` | CKB | 8 | None (native) |
 | `RUSD` | RUSD | 8 | `code_hash: 0x1142755a044bf2ee358cba9f2da187ce928c91cd4dc8692ded0337efa677d21a` |
+| `SEAL` | SEAL | 8 | Pending — type script not yet deployed on testnet |
+> **SEAL**: Support is included in the library but requires a Fiber node with SEAL configured in `udt_whitelist`. The type script will be populated once SEAL is deployed on CKB testnet. See [docs/TESTING.md](./docs/TESTING.md) for how to add a UDT to your node config.
 
 ---
 

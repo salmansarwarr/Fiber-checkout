@@ -3,17 +3,15 @@ import type { Script } from "../types/common.js";
 // ─── Asset definitions ────────────────────────────────────────────────────────
 
 export interface AssetConfig {
-  /** Human-readable asset name */
   name: string;
-  /** Display symbol */
   symbol: string;
-  /** Decimal places for display (CKB = 8, RUSD = 8) */
   decimals: number;
-  /**
-   * UDT type script. `null` for native CKB — the Fiber node uses
-   * the absence of a script to mean "native CKB payment".
-   */
   udtTypeScript: Script | null;
+  /**
+   * Whether this asset is supported on the current testnet.
+   * SEAL requires a node with SEAL configured in udt_whitelist.
+   */
+  supported: boolean;
 }
 
 // ─── RUSD UDT script (testnet) ────────────────────────────────────────────────
@@ -34,18 +32,38 @@ const RUSD_TESTNET_SCRIPT: Script = {
  * Keys are stable identifiers used throughout the library
  * (e.g. as the `asset` prop on `<FiberCheckout />`).
  */
+// ─── SEAL UDT script (testnet) ────────────────────────────────────────────────
+// SEAL is an xUDT token on CKB. The type script must be filled in once SEAL
+// is deployed on the CKB testnet and its contract address is confirmed.
+//
+// To enable SEAL on your Fiber node once the type script is known:
+//   1. Add it to config.yml under udt_whitelist
+//   2. Replace null below with the real Script object
+//
+// ⚠️  Currently null — SEAL payments will throw until this is populated.
+const SEAL_TESTNET_SCRIPT: Script | null = null;
+
 export const ASSETS = {
   CKB: {
     name: "CKB",
     symbol: "CKB",
     decimals: 8,
     udtTypeScript: null,
+    supported: true,
   },
   RUSD: {
     name: "RUSD",
     symbol: "RUSD",
     decimals: 8,
     udtTypeScript: RUSD_TESTNET_SCRIPT,
+    supported: true,
+  },
+  SEAL: {
+    name: "SEAL",
+    symbol: "SEAL",
+    decimals: 8,
+    udtTypeScript: SEAL_TESTNET_SCRIPT,
+    supported: false, // ← type script pending deployment
   },
 } as const satisfies Record<string, AssetConfig>;
 
@@ -58,11 +76,17 @@ export type AssetId = keyof typeof ASSETS;
 export function getAsset(id: AssetId): AssetConfig {
   const asset = ASSETS[id];
   if (!asset) {
-    throw new Error(
-      `Unknown asset "${id}". Available assets: ${Object.keys(ASSETS).join(", ")}`
-    );
+    throw new Error(`Unknown asset "${id}". Available: ${Object.keys(ASSETS).join(", ")}`);
   }
   return asset;
+}
+
+/**
+ * Returns true if the asset is ready for use on the current network.
+ * SEAL returns false until its type script is deployed and configured.
+ */
+export function isAssetSupported(asset: AssetConfig): boolean {
+  return asset.supported;
 }
 
 /**

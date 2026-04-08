@@ -54,7 +54,10 @@ export interface UseFiberPaymentOptions {
 
 export interface UseFiberPaymentResult {
     status: CheckoutStatus;
-    /** Fee paid in shannons as 0x-prefixed hex — available after success */
+    /**
+     * Routing fee in shannons (0x hex) from `get_payment` after success.
+     * Null if the RPC node has no outgoing session for this hash or the call fails.
+     */
     feePaid: HexString | null;
     isLoading: boolean;
     error: FiberError | null;
@@ -200,8 +203,21 @@ export function useFiberPayment(
                 setError(null);
 
                 if (next === "success") {
-                    setFeePaid(null); // get_invoice doesn't return fee — available via get_payment
-                    onSuccessRef.current?.(paymentHash!);
+                    try {
+                        const paymentInfo = await client!.getPayment({
+                            payment_hash: paymentHash!,
+                        });
+                        if (!cancelled) {
+                            setFeePaid(paymentInfo.fee ?? null);
+                        }
+                    } catch {
+                        if (!cancelled) {
+                            setFeePaid(null);
+                        }
+                    }
+                    if (!cancelled) {
+                        onSuccessRef.current?.(paymentHash!);
+                    }
                 } else if (next === "expired") {
                     onExpiredRef.current?.();
                 }

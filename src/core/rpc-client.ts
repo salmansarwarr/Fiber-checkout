@@ -5,6 +5,10 @@ import type {
     InvoiceParams,
     GetInvoiceResult,
 } from "../types/invoice.js";
+import type {
+    GetPaymentCommandParams,
+    GetPaymentCommandResult,
+} from "../types/payment.js";
 
 export interface FiberRpcClientOptions {
     /** The JSON-RPC endpoint URL */
@@ -57,10 +61,17 @@ export class FiberRpcClient {
             }
 
             if (isIp && dangerouslyAllowDirectRpc) {
-                console.warn(
+                const msg =
                     `[FiberRpcClient] dangerouslyAllowDirectRpc is enabled for "${this.url}". ` +
-                        `Ensure this is only used in trusted development environments.`,
-                );
+                    `Ensure this is only used in trusted development environments.`;
+                const isProd =
+                    typeof process !== "undefined" &&
+                    process.env.NODE_ENV === "production";
+                if (isProd) {
+                    console.error(msg);
+                } else {
+                    console.warn(msg);
+                }
             }
         } catch (e) {
             if (FiberError.is(e)) throw e;
@@ -76,6 +87,13 @@ export class FiberRpcClient {
     /** Retrieve invoice details and status by payment hash */
     async getInvoice(params: InvoiceParams): Promise<GetInvoiceResult> {
         return this.call<GetInvoiceResult>("get_invoice", [params]);
+    }
+
+    /** Outgoing payment session details by payment hash (includes routing fee when successful) */
+    async getPayment(
+        params: GetPaymentCommandParams,
+    ): Promise<GetPaymentCommandResult> {
+        return this.call<GetPaymentCommandResult>("get_payment", [params]);
     }
 
     /** Generic JSON-RPC 2.0 call */

@@ -9,6 +9,7 @@ import {
 import { FiberRpcClient } from "../rpc-client";
 import { FiberError, FiberErrorCode } from "../fiber-error";
 import type { NewInvoiceParams } from "../../types/invoice";
+import type { GetPaymentCommandResult } from "../../types/payment";
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
 
@@ -102,6 +103,8 @@ describe("FiberRpcClient — security guard", () => {
     });
 
     it("allows direct IP when dangerouslyAllowDirectRpc is true", () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
         expect(
             () =>
                 new FiberRpcClient({
@@ -109,17 +112,42 @@ describe("FiberRpcClient — security guard", () => {
                     dangerouslyAllowDirectRpc: true,
                 }),
         ).not.toThrow();
+        warnSpy.mockRestore();
+        errorSpy.mockRestore();
     });
 
-    it("emits a console.warn when dangerouslyAllowDirectRpc is true", () => {
+    it("emits a console.warn when dangerouslyAllowDirectRpc is true (non-production)", () => {
+        const prev = process.env.NODE_ENV;
+        process.env.NODE_ENV = "development";
         const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
         new FiberRpcClient({
             url: "http://127.0.0.1:8227",
             dangerouslyAllowDirectRpc: true,
         });
         expect(warnSpy).toHaveBeenCalledOnce();
         expect(warnSpy.mock.calls[0][0]).toContain("dangerouslyAllowDirectRpc");
+        expect(errorSpy).not.toHaveBeenCalled();
         warnSpy.mockRestore();
+        errorSpy.mockRestore();
+        process.env.NODE_ENV = prev;
+    });
+
+    it("emits console.error when dangerouslyAllowDirectRpc is true in production", () => {
+        const prev = process.env.NODE_ENV;
+        process.env.NODE_ENV = "production";
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        new FiberRpcClient({
+            url: "http://127.0.0.1:8227",
+            dangerouslyAllowDirectRpc: true,
+        });
+        expect(errorSpy).toHaveBeenCalledOnce();
+        expect(errorSpy.mock.calls[0][0]).toContain("dangerouslyAllowDirectRpc");
+        expect(warnSpy).not.toHaveBeenCalled();
+        warnSpy.mockRestore();
+        errorSpy.mockRestore();
+        process.env.NODE_ENV = prev;
     });
 });
 
@@ -304,5 +332,29 @@ describe("FiberRpcClient.getInvoice()", () => {
         const [, init] = fetchMock.mock.calls[0];
         const body = JSON.parse((init as RequestInit).body as string);
         expect(body.method).toBe("get_invoice");
+    });
+});
+
+describe("FiberRpcClient.getPayment()", () => {
+    it("calls get_payment and returns fee", async () => {
+        const getPaymentResult: GetPaymentCommandResult = {
+            payment_hash: "0xabc123",
+            status: "Success",
+            created_at: "0x0",
+            last_updated_at: "0x0",
+            fee: "0x64",
+        };
+        const fetchMock = mockFetch(rpcSuccess(1, getPaymentResult));
+        const client = new FiberRpcClient({ url: PROXY_URL, fetch: fetchMock });
+
+        const result = await client.getPayment({
+            payment_hash: "0xabc123",
+        });
+
+        expect(result.fee).toBe("0x64");
+
+        const [, init] = fetchMock.mock.calls[0];
+        const body = JSON.parse((init as RequestInit).body as string);
+        expect(body.method).toBe("get_payment");
     });
 });

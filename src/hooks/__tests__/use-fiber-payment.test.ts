@@ -4,6 +4,7 @@ import { useFiberPayment } from "../../hooks/use-fiber-payment";
 import * as RpcClientModule from "../../core/rpc-client";
 import { FiberError } from "../../core/fiber-error";
 import type { GetInvoiceResult } from "../../types/invoice";
+import type { GetPaymentCommandResult } from "../../types/payment";
 import type { HexString } from "../../types/common";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -33,12 +34,28 @@ function makeInvoiceResult(
 
 // ─── Mock setup ───────────────────────────────────────────────────────────────
 
+const DEFAULT_GET_PAYMENT: GetPaymentCommandResult = {
+  payment_hash: PAYMENT_HASH,
+  status: "Success",
+  created_at: "0x0",
+  last_updated_at: "0x0",
+  fee: "0x3e8",
+};
+
 function makeMockClient(
   getInvoice: () => Promise<GetInvoiceResult> = vi
     .fn()
-    .mockResolvedValue(makeInvoiceResult("Open"))
+    .mockResolvedValue(makeInvoiceResult("Open")),
+  getPayment: () => Promise<GetPaymentCommandResult> = vi
+    .fn()
+    .mockResolvedValue(DEFAULT_GET_PAYMENT)
 ) {
-  return { getInvoice, newInvoice: vi.fn(), call: vi.fn() };
+  return {
+    getInvoice,
+    getPayment,
+    newInvoice: vi.fn(),
+    call: vi.fn(),
+  };
 }
 
 let mockClient: ReturnType<typeof makeMockClient>;
@@ -104,6 +121,7 @@ describe("useFiberPayment", () => {
       const { result } = renderHook(() => useFiberPayment(BASE_OPTIONS));
       await act(async () => { await Promise.resolve(); });
       expect(result.current.status).toBe("success");
+      expect(result.current.feePaid).toBe(DEFAULT_GET_PAYMENT.fee);
     });
 
     it("maps Cancelled → failed", async () => {
@@ -214,6 +232,31 @@ describe("useFiberPayment", () => {
   });
 
   describe("callbacks", () => {
+    it("sets feePaid from get_payment when invoice is Paid", async () => {
+      mockClient.getInvoice = vi.fn().mockResolvedValue(makeInvoiceResult("Paid"));
+      mockClient.getPayment = vi.fn().mockResolvedValue({
+        ...DEFAULT_GET_PAYMENT,
+        fee: "0xbeef",
+      });
+      const { result } = renderHook(() => useFiberPayment(BASE_OPTIONS));
+      await act(async () => { await Promise.resolve(); });
+      expect(result.current.feePaid).toBe("0xbeef");
+      expect(mockClient.getPayment).toHaveBeenCalledWith({
+        payment_hash: PAYMENT_HASH,
+      });
+    });
+
+    it("leaves feePaid null when get_payment fails", async () => {
+      mockClient.getInvoice = vi.fn().mockResolvedValue(makeInvoiceResult("Paid"));
+      mockClient.getPayment = vi
+        .fn()
+        .mockRejectedValue(FiberError.rpcError("payment not found"));
+      const { result } = renderHook(() => useFiberPayment(BASE_OPTIONS));
+      await act(async () => { await Promise.resolve(); });
+      expect(result.current.status).toBe("success");
+      expect(result.current.feePaid).toBeNull();
+    });
+
     it("calls onSuccess when status becomes success", async () => {
       const onSuccess = vi.fn();
       mockClient.getInvoice = vi.fn().mockResolvedValue(makeInvoiceResult("Paid"));

@@ -559,3 +559,8 @@
     line-height: 1.7;
     max-width: 260px;
 }
+
+.assetBtnDisabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }

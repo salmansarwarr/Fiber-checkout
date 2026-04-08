@@ -1,0 +1,60 @@
+npm run test:testnet
+
+> fiber-checkout@0.1.0 test:testnet
+> npx tsx scripts/test-testnet.ts
+
+[FiberRpcClient] dangerouslyAllowDirectRpc is enabled for "http://127.0.0.1:8227". Ensure this is only used in trusted development environments.
+[FiberRpcClient] dangerouslyAllowDirectRpc is enabled for "http://18.163.221.211:8227". Ensure this is only used in trusted development environments.
+
+fiber-checkout — testnet integration tests
+Local node : http://127.0.0.1:8227
+Node2      : http://18.163.221.211:8227
+
+  node_info — local node responds ... 
+    pubkey        : 028b29c13693af505e58c71bc1cf3f3d004dd69a629a5309594b6de112512f8403
+    version       : 0.7.1
+    peers         : 3
+    channels      : 7
+  ✓
+  node_info — node2 (invoice target) responds ... 
+    node2 id      : 0291a6576bd5a94bd74b27080a48340875338fff9f6d6361fe6b8db8d0d1912fcc
+    node2 name    : CkbaNode-2
+    node2 version : 0.8.0
+  ✓
+  new_invoice — CKB (100,000,000 shannon = 1 CKB) ... 
+    address       : fibt1000000001peucv7vf6h6gfw0pmm6vkf6ysr847gzdq7…
+    payment_hash  : 0x85864acf13f531eb88c76dc030ee457e33f84a5e4e00a0252a4b05aef9085317
+  ✓
+  new_invoice — RUSD (100,000,000 = 1 RUSD) ... 
+    address       : fibt1000000001pxh9n9522ctczxzat8lhtmn7pcgu23nfrl…
+    payment_hash  : 0xc807df441a97451974eb22312cd849ff7796eefa18d8328459378d84a52dc8c0
+  ✓
+  get_invoice — freshly created invoice has status Open ... 
+    status        : Open
+  ✓
+  get_invoice — unknown hash returns RPC_ERROR ... ✓
+  connect_peer — ensure bootnode peer is connected ...   ✓
+  new_invoice — create CKB invoice on node2 (payment target) ... 
+    invoice       : fibt1000000001peseucdphcxgfw0pnm6vkdecv4zr9xvkvp…
+  ✓
+  send_payment — local node sends payment to node2 invoice ... 
+    payment_hash  : 0x5da735c80877e8bc5948808e927f0f37be4886156a0ea3efd45efe3089752ed7
+    status        : Created
+    fee           : 0 CKB
+  ✓
+  get_invoice — poll node2 until payment is Paid (≤60s) ... 
+    polling node2 every 2000ms…
+    [Open] [Paid] 
+
+  ✓
+  FiberRpcClient — blocks direct IP without flag ... ✓
+  FiberRpcClient — allows direct IP with dangerouslyAllowDirectRpc ... [FiberRpcClient] dangerouslyAllowDirectRpc is enabled for "http://127.0.0.1:8227". Ensure this is only used in trusted development environments.
+✓
+
+──────────────────────────────────────────────────
+Results: 12 passed, 0 failed out of 12 tests
+
+✓ All testnet integration tests passed
+  Invoice generation (CKB + RUSD) ✓
+  Status polling ✓
+  End-to-end payment ✓
