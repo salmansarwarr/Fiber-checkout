@@ -13,7 +13,8 @@
       "esModuleInterop": true,
       "skipLibCheck": true,
       "outDir": "dist",
-      "rootDir": "."
+      "rootDir": ".",
+      "types": ["node"]
     },
     "include": ["src", "scripts"],
     "exclude": ["node_modules", "dist"]

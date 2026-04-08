@@ -6,6 +6,27 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nervosnetwork/fiber.git",
+    "directory": "fiber-checkout"
+  },
+  "author": "Nervos Network",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nervosnetwork/fiber/issues"
+  },
+  "homepage": "https://github.com/nervosnetwork/fiber/tree/main/fiber-checkout#readme",
+  "keywords": [
+    "fiber-network",
+    "ckb",
+    "nervos",
+    "lightning-network",
+    "payment-gateway",
+    "react-component",
+    "crypto-payments"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -28,12 +49,10 @@
     "size": "npm run build && npx tsx scripts/check-bundle-size.ts",
     "verify": "npm run typecheck && npm run test && npm run build && npx tsx scripts/check-bundle-size.ts"
   },
-
   "peerDependencies": {
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"
   },
-
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -50,7 +69,6 @@
     "typescript": "^6.0.2",
     "vitest": "^2.1.9"
   },
-
   "dependencies": {
     "qrcode.react": "^4.2.0"
   }

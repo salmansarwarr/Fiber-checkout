@@ -15,7 +15,7 @@
       "paths": {
         "fiber-checkout": ["../../src/index.ts"]
       },
-      "types": ["vite/client"]
+      "types": ["vite/client", "node"]
     },
     "include": ["src"]
   }
