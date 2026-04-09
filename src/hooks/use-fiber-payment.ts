@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { FiberRpcClient } from "../core/rpc-client.js";
 import { FiberError } from "../core/fiber-error.js";
+import type { FiberBackend } from "../core/fiber-backend.js";
 import type { HexString } from "../types/common.js";
 import type { CkbInvoiceStatus } from "../types/invoice.js";
 
@@ -50,6 +51,11 @@ export interface UseFiberPaymentOptions {
     onError?: (error: FiberError) => void;
     /** Custom headers to include in every RPC request */
     headers?: Record<string, string>;
+    /**
+     * Optional pre-configured backend (e.g. FiberWasmBackend wrapping a Fiber instance
+     * from @nervosnetwork/fiber-js). When provided, `nodeUrl` is ignored for RPC calls.
+     */
+    backend?: FiberBackend;
 }
 
 export interface UseFiberPaymentResult {
@@ -105,6 +111,7 @@ export function useFiberPayment(
         onExpired,
         onError,
         headers,
+        backend: externalBackend,
     } = options;
 
     const [status, setStatus] = useState<CheckoutStatus>("idle");
@@ -121,19 +128,21 @@ export function useFiberPayment(
     onErrorRef.current = onError;
 
     // Client ref — recreated only when nodeUrl changes
-    const clientRef = useRef<FiberRpcClient | null>(null);
+    const backendRef = useRef<FiberBackend | null>(null);
     const prevUrlRef = useRef<string | null>(null);
 
-    if (prevUrlRef.current !== nodeUrl) {
+    if (externalBackend) {
+        backendRef.current = externalBackend;
+    } else if (prevUrlRef.current !== nodeUrl) {
         prevUrlRef.current = nodeUrl;
         try {
-            clientRef.current = new FiberRpcClient({
+            backendRef.current = new FiberRpcClient({
                 url: nodeUrl,
                 dangerouslyAllowDirectRpc,
                 headers,
             });
         } catch (err) {
-            clientRef.current = null;
+            backendRef.current = null;
             const fiberErr = FiberError.is(err)
                 ? err
                 : FiberError.networkError(String(err));
@@ -160,7 +169,7 @@ export function useFiberPayment(
     }, [paymentHash]);
 
     useEffect(() => {
-        const client = clientRef.current;
+        const client = backendRef.current;
         if (!client || !paymentHash) return;
 
         let cancelled = false;

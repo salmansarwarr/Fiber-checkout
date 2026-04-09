@@ -53,7 +53,13 @@
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"
   },
+  "peerDependenciesMeta": {
+    "@nervosnetwork/fiber-js": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@nervosnetwork/fiber-js": "^0.7.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.5.0",
@@ -70,6 +76,7 @@
     "vitest": "^2.1.9"
   },
   "dependencies": {
+    "@nervosnetwork/fiber-js": "^0.7.0",
     "qrcode.react": "^4.2.0"
   }
 }

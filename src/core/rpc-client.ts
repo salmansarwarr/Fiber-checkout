@@ -1,4 +1,5 @@
 import { FiberError } from "./fiber-error.js";
+import type { FiberBackend } from "./fiber-backend.js";
 import type {
     NewInvoiceParams,
     InvoiceResult,
@@ -26,7 +27,7 @@ export interface FiberRpcClientOptions {
     fetch?: typeof fetch;
 }
 
-export class FiberRpcClient {
+export class FiberRpcClient implements FiberBackend {
     private readonly url: string;
     private readonly headers: Record<string, string>;
     private readonly timeoutMs: number;

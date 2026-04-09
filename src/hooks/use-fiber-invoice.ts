@@ -4,6 +4,7 @@ import { FiberError } from "../core/fiber-error.js";
 import { generatePreimage } from "../utils/preimage.js";
 import { getAsset } from "../core/assets.js";
 import { fromHex } from "../utils/hex.js";
+import type { FiberBackend } from "../core/fiber-backend.js";
 import type { AssetId } from "../core/assets.js";
 import type { HexString } from "../types/common.js";
 import type { CkbInvoice } from "../types/invoice.js";
@@ -27,6 +28,11 @@ export interface UseFiberInvoiceOptions {
     dangerouslyAllowDirectRpc?: boolean;
     /** Custom headers to include in every RPC request */
     headers?: Record<string, string>;
+    /**
+     * Optional pre-configured backend (e.g. FiberWasmBackend wrapping a Fiber instance
+     * from @nervosnetwork/fiber-js). When provided, `nodeUrl` is ignored for RPC calls.
+     */
+    backend?: FiberBackend;
 }
 
 export interface UseFiberInvoiceResult {
@@ -57,6 +63,7 @@ export function useFiberInvoice(
         description,
         dangerouslyAllowDirectRpc = false,
         headers,
+        backend: externalBackend,
     } = options;
 
     const [invoiceAddress, setInvoiceAddress] = useState<string | null>(null);
@@ -69,21 +76,23 @@ export function useFiberInvoice(
     // Stable counter — incrementing triggers a new invoice generation
     const [generation, setGeneration] = useState(0);
 
-    // Keep a ref to the client so we don't recreate it on every render
-    const clientRef = useRef<FiberRpcClient | null>(null);
+    // Keep a ref to the backend so we don't recreate it on every render
+    const backendRef = useRef<FiberBackend | null>(null);
     const prevUrlRef = useRef<string | null>(null);
 
-    if (prevUrlRef.current !== nodeUrl) {
+    if (externalBackend) {
+        backendRef.current = externalBackend;
+    } else if (prevUrlRef.current !== nodeUrl) {
         prevUrlRef.current = nodeUrl;
         try {
-            clientRef.current = new FiberRpcClient({
+            backendRef.current = new FiberRpcClient({
                 url: nodeUrl,
                 dangerouslyAllowDirectRpc,
                 headers,
             });
         } catch (err) {
             // directRpcBlocked throws synchronously — surface it as error state
-            clientRef.current = null;
+            backendRef.current = null;
             setError(
                 FiberError.is(err) ? err : FiberError.networkError(String(err)),
             );
@@ -91,7 +100,7 @@ export function useFiberInvoice(
     }
 
     useEffect(() => {
-        const client = clientRef.current;
+        const client = backendRef.current;
         if (!client) return;
 
         let cancelled = false;
