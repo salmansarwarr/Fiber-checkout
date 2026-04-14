@@ -5,7 +5,7 @@ import { generatePreimage } from "../utils/preimage.js";
 import { getAsset } from "../core/assets.js";
 import { fromHex } from "../utils/hex.js";
 import type { FiberBackend } from "../core/fiber-backend.js";
-import type { AssetId } from "../core/assets.js";
+import type { AssetConfig } from "../core/assets.js";
 import type { HexString } from "../types/common.js";
 import type { CkbInvoice } from "../types/invoice.js";
 
@@ -16,8 +16,12 @@ export interface UseFiberInvoiceOptions {
     nodeUrl: string;
     /** Amount in shannons as a 0x-prefixed hex string (e.g. "0x5f5e100" = 1 CKB) */
     amount: HexString;
-    /** Asset to invoice for */
-    asset: AssetId;
+    /** Asset (e.g. "CKB", "RUSD", or custom identifier) */
+    asset: string;
+    /**
+     * Optional registry of additional assets.
+     */
+    customAssets?: Record<string, AssetConfig>;
     /** Invoice expiry in seconds. Defaults to 3600 (1 hour) */
     expirySeconds?: number;
     /** Optional description embedded in the invoice */
@@ -59,6 +63,7 @@ export function useFiberInvoice(
         nodeUrl,
         amount,
         asset,
+        customAssets,
         expirySeconds = 3600,
         description,
         dangerouslyAllowDirectRpc = false,

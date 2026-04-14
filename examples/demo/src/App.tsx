@@ -14,11 +14,12 @@ import styles from "./App.module.css";
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const NODE_URL = import.meta.env.VITE_FIBER_NODE_URL ?? "/api/fiber-rpc";
-const INVOICE_NODE_URL = "/api/fiber-rpc";
+const INVOICE_NODE_URL =
+    import.meta.env.VITE_FIBER_INVOICE_NODE_URL ?? "/api/node2-rpc";
 const ALLOW_DIRECT = import.meta.env.VITE_ALLOW_DIRECT_RPC !== "false";
 
 const ASSETS: { id: AssetId; label: string; disabled?: boolean }[] = [
-    { id: "CKB",  label: "CKB"  },
+    { id: "CKB", label: "CKB" },
     { id: "RUSD", label: "RUSD" },
     { id: "SEAL", label: "SEAL", disabled: true },
 ];
@@ -30,7 +31,7 @@ const PRESETS = [0.1, 0.5, 1, 5, 10];
 export default function () {
     const [asset, setAsset] = useState<AssetId>("CKB");
     const [ckbAmount, setCkbAmount] = useState(1);
-    const [copied, setCopied    ] = useState(false);
+    const [copied, setCopied] = useState(false);
     const [successHash, setSuccessHash] = useState<HexString | null>(null);
     const [paying, setPaying] = useState(false);
     const [payError, setPayError] = useState<string | null>(null);
@@ -129,15 +130,25 @@ export default function () {
                     <div className={styles.assetGroup}>
                         {ASSETS.map((a) => (
                             <button
-  key={a.id}
-  className={`${styles.assetBtn} ${asset === a.id ? styles.assetBtnActive : ""} ${a.disabled ? styles.assetBtnDisabled : ""}`}
-  onClick={() => { if (!a.disabled) { setAsset(a.id); setSuccessHash(null); } }}
-  disabled={a.disabled}
-  title={a.disabled ? "Coming soon — requires SEAL-enabled node" : undefined}
-  type="button"
->
-  {a.label}{a.disabled ? " *" : ""}
-</button>
+                                key={a.id}
+                                className={`${styles.assetBtn} ${asset === a.id ? styles.assetBtnActive : ""} ${a.disabled ? styles.assetBtnDisabled : ""}`}
+                                onClick={() => {
+                                    if (!a.disabled) {
+                                        setAsset(a.id);
+                                        setSuccessHash(null);
+                                    }
+                                }}
+                                disabled={a.disabled}
+                                title={
+                                    a.disabled
+                                        ? "Coming soon — requires SEAL-enabled node"
+                                        : undefined
+                                }
+                                type="button"
+                            >
+                                {a.label}
+                                {a.disabled ? " *" : ""}
+                            </button>
                         ))}
                     </div>
                 </div>

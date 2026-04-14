@@ -9,15 +9,15 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nervosnetwork/fiber.git",
+    "url": "git+https://github.com/salmansarwarr/Fiber-checkout.git",
     "directory": "fiber-checkout"
   },
   "author": "Nervos Network",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/nervosnetwork/fiber/issues"
+    "url": "https://github.com/salmansarwarr/Fiber-checkout/issues"
   },
-  "homepage": "https://github.com/nervosnetwork/fiber/tree/main/fiber-checkout#readme",
+  "homepage": "https://github.com/salmansarwarr/Fiber-checkout/tree/main/fiber-checkout#readme",
   "keywords": [
     "fiber-network",
     "ckb",
@@ -51,7 +51,8 @@
   },
   "peerDependencies": {
     "react": "^18 || ^19",
-    "react-dom": "^18 || ^19"
+    "react-dom": "^18 || ^19",
+    "@nervosnetwork/fiber-js": "^0.7.0"
   },
   "peerDependenciesMeta": {
     "@nervosnetwork/fiber-js": {
@@ -76,7 +77,6 @@
     "vitest": "^2.1.9"
   },
   "dependencies": {
-    "@nervosnetwork/fiber-js": "^0.7.0",
     "qrcode.react": "^4.2.0"
   }
 }

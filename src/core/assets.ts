@@ -3,25 +3,25 @@ import type { Script } from "../types/common.js";
 // ─── Asset definitions ────────────────────────────────────────────────────────
 
 export interface AssetConfig {
-  name: string;
-  symbol: string;
-  decimals: number;
-  udtTypeScript: Script | null;
-  /**
-   * Whether this asset is supported on the current testnet.
-   * SEAL requires a node with SEAL configured in udt_whitelist.
-   */
-  supported: boolean;
+    name: string;
+    symbol: string;
+    decimals: number;
+    udtTypeScript: Script | null;
+    /**
+     * Whether this asset is supported on the current testnet.
+     * SEAL requires a node with SEAL configured in udt_whitelist.
+     */
+    supported: boolean;
 }
 
 // ─── RUSD UDT script (testnet) ────────────────────────────────────────────────
 // Verified from live node_info response at http://127.0.0.1:8227
 
 const RUSD_TESTNET_SCRIPT: Script = {
-  code_hash:
-    "0x1142755a044bf2ee358cba9f2da187ce928c91cd4dc8692ded0337efa677d21a",
-  hash_type: "type",
-  args: "0x878fcc6f1f08d48e87bb1c3b3d5083f23f8a39c5d5c764f253b55b998526439b",
+    code_hash:
+        "0x1142755a044bf2ee358cba9f2da187ce928c91cd4dc8692ded0337efa677d21a",
+    hash_type: "type",
+    args: "0x878fcc6f1f08d48e87bb1c3b3d5083f23f8a39c5d5c764f253b55b998526439b",
 };
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
@@ -44,54 +44,64 @@ const RUSD_TESTNET_SCRIPT: Script = {
 const SEAL_TESTNET_SCRIPT: Script | null = null;
 
 export const ASSETS = {
-  CKB: {
-    name: "CKB",
-    symbol: "CKB",
-    decimals: 8,
-    udtTypeScript: null,
-    supported: true,
-  },
-  RUSD: {
-    name: "RUSD",
-    symbol: "RUSD",
-    decimals: 8,
-    udtTypeScript: RUSD_TESTNET_SCRIPT,
-    supported: true,
-  },
-  SEAL: {
-    name: "SEAL",
-    symbol: "SEAL",
-    decimals: 8,
-    udtTypeScript: SEAL_TESTNET_SCRIPT,
-    supported: false, // ← type script pending deployment
-  },
+    CKB: {
+        name: "CKB",
+        symbol: "CKB",
+        decimals: 8,
+        udtTypeScript: null,
+        supported: true,
+    },
+    RUSD: {
+        name: "RUSD",
+        symbol: "RUSD",
+        decimals: 8,
+        udtTypeScript: RUSD_TESTNET_SCRIPT,
+        supported: true,
+    },
+    SEAL: {
+        name: "SEAL",
+        symbol: "SEAL",
+        decimals: 8,
+        udtTypeScript: SEAL_TESTNET_SCRIPT,
+        supported: false, // ← type script pending deployment
+    },
 } as const satisfies Record<string, AssetConfig>;
 
-export type AssetId = keyof typeof ASSETS;
+export type BuiltInAssetId = keyof typeof ASSETS;
 
 /**
- * Look up an asset config by ID.
- * Throws if the ID is not registered.
+ * Look up an asset config by ID from a combined registry.
+ * @param id The asset identifier (e.g. "CKB", "RUSD", or a custom ID)
+ * @param customAssets Optional record of additional assets to check
  */
-export function getAsset(id: AssetId): AssetConfig {
-  const asset = ASSETS[id];
-  if (!asset) {
-    throw new Error(`Unknown asset "${id}". Available: ${Object.keys(ASSETS).join(", ")}`);
-  }
-  return asset;
+export function getAsset(
+    id: string,
+    customAssets?: Record<string, AssetConfig>,
+): AssetConfig {
+    const registry: Record<string, AssetConfig> = {
+        ...ASSETS,
+        ...customAssets,
+    };
+    const asset = registry[id];
+
+    if (!asset) {
+        throw new Error(
+            `Unknown asset "${id}". Registered assets: ${Object.keys(registry).join(", ")}`,
+        );
+    }
+    return asset;
 }
 
 /**
  * Returns true if the asset is ready for use on the current network.
- * SEAL returns false until its type script is deployed and configured.
  */
 export function isAssetSupported(asset: AssetConfig): boolean {
-  return asset.supported;
+    return asset.supported;
 }
 
 /**
  * Returns true if the asset uses a UDT type script (i.e. is not native CKB).
  */
 export function isUdtAsset(asset: AssetConfig): boolean {
-  return asset.udtTypeScript !== null;
+    return asset.udtTypeScript !== null;
 }
