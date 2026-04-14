@@ -2,7 +2,7 @@
 export { FiberError, FiberErrorCode } from "./core/fiber-error.js";
 export { FiberRpcClient } from "./core/rpc-client.js";
 export { ASSETS, getAsset, isUdtAsset } from "./core/assets.js";
-export type { AssetConfig, BuiltInAssetId } from "./core/assets.js";
+export type { AssetConfig, AssetId } from "./core/assets.js";
 
 // ─── Backend abstraction ──────────────────────────────────────────────────────
 export { FiberWasmBackend } from "./core/fiber-backend.js";

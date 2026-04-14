@@ -67,7 +67,7 @@ export const ASSETS = {
     },
 } as const satisfies Record<string, AssetConfig>;
 
-export type BuiltInAssetId = keyof typeof ASSETS;
+export type AssetId = keyof typeof ASSETS;
 
 /**
  * Look up an asset config by ID from a combined registry.
