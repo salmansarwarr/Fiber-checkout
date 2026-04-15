@@ -4,16 +4,13 @@ This document provides a step-by-step verification path for payments using `fibe
 
 ## 1. Wallet Used
 
-For testing and demonstration, we use the **official Fiber command-line wallet** (or any Fiber-compatible mobile wallet).
-
-- **Source Node**: Peer ID `0286...`
-- **Wallet Balance (Before)**: `100.00 CKB`
+For testing and demonstration, we use the **official Fiber command-line testnet node**.
 
 ## 2. Scan & Pay
 
 1. The `fiber-checkout` component generates a `lightning:` prefixed Bech32m invoice.
-2. The user scans the QR code with their wallet.
-3. The wallet decodes the invoice, showing the amount (e.g., 10 CKB) and the destination.
+2. The invoice is sent to the Fiber node via `send_payment` RPC.
+3. The invoice used in this test: `fibt1000000001peymvjde5cjgfw0pnm6vksuv9ej05ufln9d3vfpjk3swmgm9aaazfns3n8xgh9wedvqmacptyypkaryw487y9u30fygz0xh8t6cwv3qd30nsgqjc7djq53wjx4y9fc35ppz54k2tfa4u8ls9ta49q6kslc27sx483x3e55eyh97tlf0tkzc8t6dkwhuwhgz64wtwy29pwgruhazlym098uuj8mknwnk74jnwxrummhehsss546z4klajwlw9k4g2yxgf68j4g9d9etzz0rcse7kr2vnzd6s0ql2unvwlz9rrpegn9jwfwkskz5rwtdttmkn2cl3z8uj6tmmz68yv6vqw3n2l2v24m6aw7uxsjgqn3uwpv`
 
 ## 3. Transaction Confirmation
 
@@ -27,8 +24,9 @@ Once the payment is broadcasted on the Fiber Network:
 
 After the "Success" state is reached, the sender's balance is updated immediately.
 
-- **Wallet Balance (After)**: `89.99... CKB` (Principal + small routing fee)
-- **Payment Hash**: `0x7f5c8d23e1b6a7f9e8d...`
+- **Status**: `Success` (Confirmed via `get_payment`)
+- **Payment Hash**: `0xbbca7def2d1e0a5fa090350429848e65c823f4dbe470bcbb88e28b1624685c92`
+- **Fee Paid**: `0x186a0` Shannons
 - **CKB Explorer Link**: Since Fiber is a Layer 2 network, the individual payment is off-chain. However, the channel settlement or funding can be viewed on the [CKB Explorer](https://explorer.nervos.org/testnet).
 
 ### Verification Checklist

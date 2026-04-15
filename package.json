@@ -1,6 +1,6 @@
 {
   "name": "fiber-checkout",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "React component suite for Fiber Network payments",
   "main": "./dist/index.cjs",
