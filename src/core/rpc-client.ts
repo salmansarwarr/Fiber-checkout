@@ -46,37 +46,52 @@ export class FiberRpcClient implements FiberBackend {
         this.validateUrlSecurity(options.dangerouslyAllowDirectRpc);
     }
 
-    private validateUrlSecurity(dangerouslyAllowDirectRpc = false) {
+    private validateUrlSecurity(dangerouslyAllowDirectRpc?: boolean): void {
         try {
+            // Same-origin relative paths (e.g. /api/fiber-rpc) are always safe
+            if (this.url.startsWith("/")) return;
+
             const parsed = new URL(this.url);
-            const hostname = parsed.hostname;
 
-            // Simple regex for IPv4 and IPv6
-            const isIp =
-                /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname) ||
-                hostname.includes(":") ||
-                hostname === "[::1]";
+            // HTTPS on any domain is always safe — proper reverse proxy
+            if (parsed.protocol === "https:") return;
 
-            if (isIp && !dangerouslyAllowDirectRpc) {
+            // HTTP is only acceptable for raw IPs (local dev / direct RPC)
+            const isRawIp =
+                /^(\d{1,3}\.){3}\d{1,3}$/.test(parsed.hostname) ||
+                parsed.hostname === "localhost" ||
+                parsed.hostname === "127.0.0.1" ||
+                /^\[.*\]$/.test(parsed.hostname); // IPv6
+
+            if (isRawIp && !dangerouslyAllowDirectRpc) {
                 throw FiberError.directRpcBlocked(this.url);
             }
 
-            if (isIp && dangerouslyAllowDirectRpc) {
+            if (isRawIp && dangerouslyAllowDirectRpc) {
                 const msg =
                     `[FiberRpcClient] dangerouslyAllowDirectRpc is enabled for "${this.url}". ` +
                     `Ensure this is only used in trusted development environments.`;
-                const isProd =
+                if (
                     typeof process !== "undefined" &&
-                    process.env.NODE_ENV === "production";
-                if (isProd) {
+                    process.env?.NODE_ENV === "production"
+                ) {
                     console.error(msg);
                 } else {
                     console.warn(msg);
                 }
             }
+
+            // HTTP on a named domain (e.g. http://api.example.com) — warn but allow
+            // This covers nginx/caddy proxies that haven't yet enabled HTTPS
+            if (!isRawIp && parsed.protocol === "http:") {
+                console.warn(
+                    `[FiberRpcClient] "${this.url}" is using HTTP on a named domain. ` +
+                        `Consider using HTTPS in production.`,
+                );
+            }
         } catch (e) {
             if (FiberError.is(e)) throw e;
-            // Ignore URL parsing errors here, fetch will catch them
+            // Ignore URL parsing errors — fetch will surface them
         }
     }
 
