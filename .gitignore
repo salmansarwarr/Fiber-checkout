@@ -11,11 +11,8 @@ coverage/
 *.tsbuildinfo
 
 # Environment
-.env
-.env.local
 
 # Editor
-.vscode/
 .idea/
 *.swp
 
@@ -26,3 +23,4 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+config.bat

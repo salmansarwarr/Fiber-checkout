@@ -1,0 +1,60 @@
+name: Fiber Regression Monitor
+
+on:
+    schedule:
+        # Run weekly on Monday at 00:00 UTC
+        - cron: "0 0 * * 1"
+
+    workflow_dispatch:
+        inputs:
+            sdk_version:
+                description: "Specific @nervosnetwork/fiber-js version to test"
+                required: false
+                default: "latest"
+
+jobs:
+    monitor:
+        name: Monitor (${{ matrix.fiber_version }})
+        runs-on: ubuntu-latest
+
+        strategy:
+            fail-fast: false
+            matrix:
+                fiber_version: [locked, latest]
+
+        timeout-minutes: 20
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Install selected Fiber SDK version
+              if: matrix.fiber_version == 'latest'
+              run: |
+                  VERSION="${{ github.event.inputs.sdk_version || 'latest' }}"
+
+                  echo "Installing @nervosnetwork/fiber-js@$VERSION"
+
+                  npm install @nervosnetwork/fiber-js@$VERSION --no-save
+
+            - name: Print installed SDK version
+              run: npm list @nervosnetwork/fiber-js
+
+            - name: Check public testnet node availability
+              run: |
+                  curl --fail --max-time 15 http://18.163.221.211:8227 || exit 1
+
+            - name: Run testnet suite
+              env:
+                  FIBER_RPC_URL: http://18.163.221.211:8227
+                  CI: true
+              run: npm run test:testnet
